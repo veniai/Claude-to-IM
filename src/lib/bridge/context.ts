@@ -30,6 +30,11 @@ export interface BridgeContext {
    */
   onCommand?(command: string, args: string, chatId: string): Promise<string | undefined>;
   /**
+   * Message intercept hook. Called for non-command messages before routing to LLM.
+   * Return a response string to send back (skipping LLM), or undefined to continue normal flow.
+   */
+  onMessage?(text: string, chatId: string): Promise<string | undefined>;
+  /**
    * Extra help lines appended to /help output. Each line is an HTML string.
    */
   extraHelpLines?(): string[];

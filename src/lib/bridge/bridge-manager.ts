@@ -571,6 +571,22 @@ async function handleMessage(
     return;
   }
 
+  // Check for message intercept hook (e.g. numeric session selection)
+  const ctx = getBridgeContext();
+  if (ctx.onMessage) {
+    const intercepted = await ctx.onMessage(rawText, msg.address.chatId);
+    if (intercepted !== undefined) {
+      await deliver(adapter, {
+        address: msg.address,
+        text: intercepted,
+        parseMode: 'HTML',
+        replyToMessageId: msg.messageId,
+      });
+      ack();
+      return;
+    }
+  }
+
   // Sanitize general message text before routing to conversation engine
   const { text, truncated } = sanitizeInput(rawText);
   if (truncated) {
@@ -811,9 +827,9 @@ async function handleCommand(
   let response = '';
 
   // Check for custom command handlers first
-  const ctx = getBridgeContext();
-  if (ctx.onCommand) {
-    const customResponse = await ctx.onCommand(command, args, msg.address.chatId);
+  const cmdCtx = getBridgeContext();
+  if (cmdCtx.onCommand) {
+    const customResponse = await cmdCtx.onCommand(command, args, msg.address.chatId);
     if (customResponse !== undefined) {
       await deliver(adapter, {
         address: msg.address,
@@ -843,8 +859,8 @@ async function handleCommand(
         '/perm allow|allow_session|deny &lt;id&gt; - Respond to permission',
         '/help - Show this help',
       ];
-      if (ctx.extraHelpLines) {
-        startLines.push(...ctx.extraHelpLines());
+      if (cmdCtx.extraHelpLines) {
+        startLines.push(...cmdCtx.extraHelpLines());
       }
       response = startLines.join('\n');
       break;
@@ -996,8 +1012,8 @@ async function handleCommand(
         '1/2/3 - Quick permission reply (Feishu/QQ/WeChat, single pending)',
         '/help - Show this help',
       ];
-      if (ctx.extraHelpLines) {
-        helpLines.push(...ctx.extraHelpLines());
+      if (cmdCtx.extraHelpLines) {
+        helpLines.push(...cmdCtx.extraHelpLines());
       }
       response = helpLines.join('\n');
       break;
