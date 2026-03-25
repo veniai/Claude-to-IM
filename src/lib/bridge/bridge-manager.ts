@@ -810,9 +810,24 @@ async function handleCommand(
 
   let response = '';
 
+  // Check for custom command handlers first
+  const ctx = getBridgeContext();
+  if (ctx.onCommand) {
+    const customResponse = await ctx.onCommand(command, args, msg.address.chatId);
+    if (customResponse !== undefined) {
+      await deliver(adapter, {
+        address: msg.address,
+        text: customResponse,
+        parseMode: 'HTML',
+        replyToMessageId: msg.messageId,
+      });
+      return;
+    }
+  }
+
   switch (command) {
-    case '/start':
-      response = [
+    case '/start': {
+      const startLines = [
         '<b>CodePilot Bridge</b>',
         '',
         'Send any message to interact with Claude.',
@@ -827,8 +842,13 @@ async function handleCommand(
         '/stop - Stop current session',
         '/perm allow|allow_session|deny &lt;id&gt; - Respond to permission',
         '/help - Show this help',
-      ].join('\n');
+      ];
+      if (ctx.extraHelpLines) {
+        startLines.push(...ctx.extraHelpLines());
+      }
+      response = startLines.join('\n');
       break;
+    }
 
     case '/new': {
       // Abort any running task on the current session before creating a new one
@@ -961,8 +981,8 @@ async function handleCommand(
       break;
     }
 
-    case '/help':
-      response = [
+    case '/help': {
+      const helpLines = [
         '<b>CodePilot Bridge Commands</b>',
         '',
         '/new [path] - Start new session',
@@ -975,8 +995,13 @@ async function handleCommand(
         '/perm allow|allow_session|deny &lt;id&gt; - Respond to permission request',
         '1/2/3 - Quick permission reply (Feishu/QQ/WeChat, single pending)',
         '/help - Show this help',
-      ].join('\n');
+      ];
+      if (ctx.extraHelpLines) {
+        helpLines.push(...ctx.extraHelpLines());
+      }
+      response = helpLines.join('\n');
       break;
+    }
 
     default:
       response = `Unknown command: ${escapeHtml(command)}\nType /help for available commands.`;
